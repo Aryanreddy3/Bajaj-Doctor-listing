@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Doctor, FilterState, SPECIALTIES } from './types/doctor';
 import DoctorList from './components/DoctorList';
@@ -25,11 +25,14 @@ function DoctorListingPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Component mounted');
     const fetchDoctors = async () => {
       try {
+        console.log('Fetching doctors...');
         setLoading(true);
         setError('');
         const response = await axios.get(API_URL);
+        console.log('API Response:', response.data);
         
         // Transform the API data to match our Doctor interface
         const transformedDoctors = response.data.map((doctor: any) => ({
@@ -41,6 +44,7 @@ function DoctorListingPage() {
           consultationMode: doctor.consultationMode === 'Video Consult' ? 'Video Consult' : 'In Clinic'
         }));
 
+        console.log('Transformed doctors:', transformedDoctors);
         setDoctors(transformedDoctors);
         setFilteredDoctors(transformedDoctors);
       } catch (error) {
@@ -157,13 +161,52 @@ function DoctorListingPage() {
   );
 }
 
+function FallbackUI() {
+  return (
+    <div style={{ padding: '20px', textAlign: 'center' }}>
+      <h1>Doctor Listing</h1>
+      <p>Loading application...</p>
+    </div>
+  );
+}
+
+function ErrorBoundary({ children }: { children: React.ReactNode }) {
+  const [hasError, setHasError] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const handleError = (error: Error) => {
+      console.error('Error caught by boundary:', error);
+      setHasError(true);
+      setError(error);
+    };
+
+    window.addEventListener('error', (event) => handleError(event.error));
+    return () => window.removeEventListener('error', (event) => handleError(event.error));
+  }, []);
+
+  if (hasError) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <h1>Something went wrong</h1>
+        <p>{error?.message}</p>
+        <button onClick={() => window.location.reload()}>Reload Page</button>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<DoctorListingPage />} />
-      </Routes>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <Routes>
+          <Route path="/" element={<DoctorListingPage />} />
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
